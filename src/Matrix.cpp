@@ -39,28 +39,32 @@ Matrix<T>::get_cols_num(void) const{
 
 template<typename T>
 void*
-Matrix<T>::apply(void* (*f)(row<T>), int rownum) const{
+Matrix<T>::apply(std::function<void* (row<T>)> f, int rownum) const{
   return f(t->at(rownum));
 }
 
 template<typename T>
 void*
-Matrix<T>::apply(void *(*f)(std::vector<row<T>>)) const{
+Matrix<T>::apply(std::function<void* (std::vector<row<T>>)> f) const{
   return f(*t);
 }
 
 template<typename T>
 void*
-Matrix<T>::apply_m(void *(*f)(row<T>*), int rownum){
+Matrix<T>::apply_m(std::function<void* (row<T>*)> f, int rownum){
   return f(&(t->at(rownum)));
 }
 
 template<typename T>
 void*
-Matrix<T>::apply_m(void *(*f)(std::vector<row<T>>*)){
+Matrix<T>::apply_m(std::function<void* (std::vector<row<T>>*)> f){
   return f(t);
 }
 
+template class Matrix<uint8_t>;
+template class Matrix<uint16_t>;
+template class Matrix<uint32_t>;
+template class Matrix<uint64_t>;
 template class Matrix<int8_t>;
 template class Matrix<int16_t>;
 template class Matrix<int32_t>;

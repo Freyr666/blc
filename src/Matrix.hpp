@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <algorithm>
+#include <functional>
 
 template<typename T>
 using row = std::vector<T>;
@@ -21,11 +22,11 @@ public:
   int  get_rows_num(void) const;
   int  get_cols_num(void) const;
   
-  void* apply(void* (*f)(row<T>), int rownum) const;
-  void* apply(void* (*f)(std::vector<row<T>>)) const;
+  void* apply(std::function<void* (row<T>)> f, int rownum) const;
+  void* apply(std::function<void* (std::vector<row<T>>)> f) const;
   
-  void* apply_m(void* (*f)(row<T>*), int rownum);
-  void* apply_m(void* (*f)(std::vector<row<T>>*));
+  void* apply_m(std::function<void* (row<T>*)> f, int rownum);
+  void* apply_m(std::function<void* (std::vector<row<T>>*)> f);
 };
 
 #endif /* MATRIX_H */

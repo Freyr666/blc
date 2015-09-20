@@ -3,40 +3,23 @@
 #include <algorithm>
 #include "Matrix.hpp"
 #include "Pic2Mat.hpp"
+#include "naive.hpp"
 
-template<typename T>
-void*
-test_fun(row<T>* r){
-  T i = 0;
-  for_each(r->begin(), r->end(), [&i](T &k)
-	   { k = i++; } );
-  int* rv = new int;
-  *rv = 13;
-  return rv;
-}
-
-template<typename T>
-void*
-sum_row(row<T>* r){
-  int i = 0;
-  for_each(r->begin(), r->end(), [&i](T k)
-	   { i += k; } );
-  T* rv = new T;
-  *rv = i;
-  return rv;
-}
 
 int
 main(int argc, char **argv){
-  if (argc < 3){
-    std::cout << "Usage: prog ./blocky_image ./non_blocky image\n";
+  if (argc < 2){
+    std::cout << "Usage: prog ./image\n";
     return 0;
   }
-  Matrix<int8_t>* blc = Pic2Mat<int8_t>(argv[1]);
-  Matrix<int8_t>* nblc = Pic2Mat<int8_t>(argv[2]);
+  
+  Matrix<int>* blc = Pic2Mat<int>(argv[1]);
+  
+  auto f =  get_naive_alg<int>(blc->get_cols_num(), blc->get_rows_num());
+  double rv = *(double*)blc->apply(f);
 
-  std::cout << blc->get_cols_num() <<"\t" << blc->get_rows_num() <<"\n";
-  std::cout << nblc->get_cols_num() <<"\t" << nblc->get_rows_num() <<"\n";
+  std::cout << "Fun f is ok\n";
+  std::cout << rv << "\n";
   
   return 0;
 }
