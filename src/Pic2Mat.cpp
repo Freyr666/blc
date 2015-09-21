@@ -18,10 +18,11 @@ Matrix<T>* Magick2Mat(Magick::Image * img){
   for (int i = 0; i < img->rows() - 1; i++) {
     for (int j = 0; j < img->columns() - 1; j++) {
       Magick::Color color = pixels[img->columns() * i + j];
-      uint8_t rc = color.redQuantum() /range;
-      uint8_t bc = color.blueQuantum() /range;
-      uint8_t gc = color.greenQuantum() /range;
-      T c = 16 + (65.738*rc/256) + (25.064*bc/256) + (129.057*gc/256);
+      uint rc = color.redQuantum() /range;
+      uint bc = color.blueQuantum() /range;
+      uint gc = color.greenQuantum() /range;
+      //T c = 16 + (65.738*rc/256) + (25.064*bc/256) + (129.057*gc/256); //ITU-R BT.601 conversion
+      T c = (0.299*rc) + (0.587*bc) + (0.114*gc); //jpeg
       mat->set_el_m(j, i, c);      
     }
   }
