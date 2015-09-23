@@ -60,7 +60,7 @@ void*
 Matrix<T>::apply_m(std::function<void* (std::vector<row<T>>*)> f){
   return f(t);
 }
-
+/*
 template class Matrix<uint8_t>;
 template class Matrix<uint16_t>;
 template class Matrix<uint32_t>;
@@ -69,3 +69,5 @@ template class Matrix<int8_t>;
 template class Matrix<int16_t>;
 template class Matrix<int32_t>;
 template class Matrix<int64_t>;
+*/
+template class Matrix<int>;

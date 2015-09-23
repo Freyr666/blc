@@ -14,7 +14,6 @@ get_naive_alg(int cols, int rows){
     long sum;
     std::vector<long> hDifference  (cols);
     std::vector<long> hProfile (cols);
-    std::cout << "We are in returned f\n";
     for (int i = 0; i < rows; i++) {
       hDifference[0] = std::abs(r[i][0] - r[i][1]);
       for(int j = 0; j < cols - 1 ; j++){
@@ -36,11 +35,7 @@ get_naive_alg(int cols, int rows){
       }
     }
     if(!Shnonblock) Shnonblock = 4;
-    std::cout << "And all seems ok\n";
     *BS = (Shblock/block_cnt)/(Shnonblock/nonblock_cnt);
-    std::cout << "BS is " << *BS << "\n";
-    std::cout << "sh is " << Shblock << " shnb is " << Shnonblock << "\n";
-    std::cout << "cnt is " << block_cnt << " cntnb is " << nonblock_cnt << "\n";
     return BS;
   };
   return alg;
