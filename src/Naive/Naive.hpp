@@ -14,9 +14,10 @@ private:
   std::vector<long>* hProfile;  
 public:
   Naive(int cls, int rws);
+  Naive(Naive &n);
   virtual ~Naive();
 
-  void* eval(std::vector<std::vector<T>> t);
+  void* eval(std::vector<T> t);
 
   void* operator()(std::vector<T> t) { return eval(t);}
 };

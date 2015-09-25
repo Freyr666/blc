@@ -5,14 +5,12 @@
 #include <algorithm>
 #include <functional>
 
-template<typename T>
-using row = std::vector<T>;
 
 template<typename T>
 class Matrix{
 private:
   int cols, rows;
-  std::vector<std::vector<T>> * t;
+  std::vector<T> * t;
 public:
   Matrix(int x, int y);
   virtual ~Matrix();
@@ -22,11 +20,13 @@ public:
   int  get_rows_num(void) const;
   int  get_cols_num(void) const;
   
-  void* apply(std::function<void* (row<T>)> f, int rownum) const;
-  void* apply(std::function<void* (std::vector<row<T>>)> f) const;
+  void* apply(std::function<void* (std::vector<T>)> f, int rownum) const;
+  void* apply(std::function<void* (std::vector<T>)> f) const;;
   
-  void* apply_m(std::function<void* (row<T>*)> f, int rownum);
-  void* apply_m(std::function<void* (std::vector<row<T>>*)> f);
+  void* apply_m(std::function<void* (std::vector<T>*)> f);
+
+  std::vector<T> * val(void) const { return t;} 
+  std::vector<T> * val_m(void) { return t;}
 };
 
-#endif /* MATRIX_H */
+#endif /* MATRIX_FLAT_H */

@@ -4,7 +4,7 @@
 template<typename T>
 fun<T>
 get_naive_alg(int cols, int rows){
-  fun<T> alg = [cols, rows](std::vector<row<T>> r) -> void* {
+  fun<T> alg = [cols, rows](std::vector<T> r) -> void* {
     double Shblock = 0;
     double Shnonblock = 0;
     long block_cnt = 0;
@@ -14,10 +14,11 @@ get_naive_alg(int cols, int rows){
     long sum;
     std::vector<long> hDifference  (cols);
     std::vector<long> hProfile (cols);
+    std::cout << "We are in returned f\n";
     for (int i = 0; i < rows; i++) {
-      hDifference[0] = std::abs(r[i][0] - r[i][1]);
+      hDifference[0] = std::abs(r[i*cols] - r[i*cols + 1]);
       for(int j = 0; j < cols - 1 ; j++){
-	hDifference[j+1] = std::abs(r[i][j] - r[i][j+1]);
+	hDifference[j+1] = std::abs(r[i*cols + j] - r[i*cols + j + 1]);
 	sum = hDifference[j-1] + hDifference[j+1];
 	if (!sum) denom = 1;
 	else denom = 0.5*sum;
@@ -35,7 +36,11 @@ get_naive_alg(int cols, int rows){
       }
     }
     if(!Shnonblock) Shnonblock = 4;
+    std::cout << "And all seems ok\n";
     *BS = (Shblock/block_cnt)/(Shnonblock/nonblock_cnt);
+    std::cout << "BS is " << *BS << "\n";
+    std::cout << "sh is " << Shblock << " shnb is " << Shnonblock << "\n";
+    std::cout << "cnt is " << block_cnt << " cntnb is " << nonblock_cnt << "\n";
     return BS;
   };
   return alg;
