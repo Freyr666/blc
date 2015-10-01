@@ -27,7 +27,7 @@ Naive<T>::~Naive(){
 
 template<typename T>
 void*
-Naive<T>::eval(std::vector<T> t){
+Naive<T>::eval(std::vector<T>* t){
   double Shblock = 0;
   double Shnonblock = 0;
   long block_cnt = 0;
@@ -35,9 +35,9 @@ Naive<T>::eval(std::vector<T> t){
   double denom;
   long sum;
   for (int i = 0; i < rows; i++) {
-    (*hDifference)[0] = std::abs(t[i*cols] - t[i*cols + 1]);
+    (*hDifference)[0] = std::abs((*t)[i*cols] - (*t)[i*cols + 1]);
     for (int j = 0; j < cols; j++) {
-      (*hDifference)[j+1] = std::abs(t[i*cols + j] - t[i*cols + j +1]);
+      (*hDifference)[j+1] = std::abs((*t)[i*cols + j] - (*t)[i*cols + j +1]);
       sum = (*hDifference)[j-1] + (*hDifference)[j+1];
       if(!sum) denom = 1;
       else  denom = 0.5 * sum;

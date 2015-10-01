@@ -17,8 +17,8 @@ public:
   Naive(Naive &n);
   virtual ~Naive();
 
-  void* eval(std::vector<T> t);
+  void* eval(std::vector<T>* t);
 
-  void* operator()(std::vector<T> t) { return eval(t);}
+  void* operator()(std::vector<T>* t) { return eval(t);}
 };
 #endif /* NAIVE_H */
