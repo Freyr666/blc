@@ -1,56 +1,73 @@
 #include "Optzd.hpp"
 
+const char * s_pic2bs =
+  //"#pragma OPENCL EXTENSION cl_khr_fp64 : enable  \n"
+  "__kernel void pic2hprof(\n"  //calcs hprof for each row
+  "         __global const uchar* pic,\n"
+  "         __global float* result,\n"
+  "         int hsize, int vsize)\n"
+  "{    \n"
+  "  size_t globalId = get_global_id(0); \n"
+  "  size_t groupSize = get_num_groups(0); \n"
+  "  size_t localSize = get_local_size(0); \n"
+  "  size_t groupId = get_group_id(0); \n"
+  "  size_t localId = get_local_id(0); \n"
+  "  size_t globalSize = get_global_size(0); \n"
+  "  size_t binSize = globalSize/localSize;\n"
+  "  float sum, sub, subNext, subPrev; \n"
+  "  float hacc = 0;\n"
+  // "  if ((globalId < 2) || (globalId > hsize - 1) || (globalId > globalSize - 1)) return; \n"
+  "  for (int i = 0; i < vsize; ++i){ \n"
+  "         sub = (float)abs(pic[globalId*4 + i*hsize - 1] - pic[globalId*4 + i*hsize]);\n"
+  "         subNext = (float)abs(pic[globalId*4 + i*hsize] - pic[globalId*4 + i*hsize + 1]);\n" 
+  "         subPrev = (float)abs(pic[globalId*4 + i*hsize - 2] - pic[globalId*4 + i*hsize - 1]);\n"
+  "         sum = (float)(subNext + subPrev);\n"
+  "         if (sum == 0) sum = 1; \n"
+  "         else sum = 0.5*sum; \n"
+  "         hacc += sub / sum;} \n"
+  "  if (globalId % 2) result[0] += hacc;\n"
+  "  else result[1] += hacc;\n"
+  "}\n";
+
 #include <iostream>
 
-template<typename T>
-Optzd<T>::Optzd(int cls, int rws, int l_mem){
+Optzd::Optzd(int cls, int rws, int thrds, int pltfrm){
   //vals init
   cols = cls;
   rows = rws;
-  lmem = l_mem;
-  fsize = cls*rws;
-  cnt_blc = cls/8;
-  cnt_nblc = cls - cls/8;
+  threads = thrds;
+  global_threads = cls/4;
   BS = new double;
-  //debug
-  ddiff = new int [fsize];
-  //END_DEBUG
+  sh = new float[2];
   //opencl init
+  platform = NULL;
+  device_list = NULL;
   //Set up the Platform
-  clStatus = clGetPlatformIDs(0, NULL, &num_platforms);
-  platforms = (cl_platform_id *) malloc(sizeof(cl_platform_id)*num_platforms);
-  clStatus = clGetPlatformIDs(num_platforms, platforms, NULL);
+  status = clGetPlatformIDs(0, NULL, &n_platforms);
+  platform = new cl_platform_id[n_platforms];
+  status = clGetPlatformIDs(n_platforms, platform, NULL);
   //Get the devices list and choose the device you want to run on
-  clStatus = clGetDeviceIDs( platforms[0], CL_DEVICE_TYPE_GPU, 0, NULL, &num_devices);
-  device_list = (cl_device_id *) malloc(sizeof(cl_device_id)*num_devices);
-  clStatus = clGetDeviceIDs( platforms[0], CL_DEVICE_TYPE_GPU, num_devices, device_list, NULL);
+  status = clGetDeviceIDs(platform[pltfrm], CL_DEVICE_TYPE_GPU, 0, NULL, &n_devices);
+  device_list = new cl_device_id [n_devices];
+  status = clGetDeviceIDs(platform[pltfrm], CL_DEVICE_TYPE_GPU, n_devices, device_list, NULL);
   // Create one OpenCL context for each device in the platform
-  context = clCreateContext( NULL, num_devices, device_list, NULL, NULL, &clStatus);
-  // Create a command queue
-  command_queue = clCreateCommandQueue(context, *device_list, 0, &clStatus);
+  context = clCreateContext(NULL, n_devices, device_list, NULL, NULL, &status);
+  queue = clCreateCommandQueue(context, *device_list, 0, &status);
   // Create memory buffers on the device for each vector
-  cl_frame = clCreateBuffer(context, CL_MEM_READ_ONLY, fsize * sizeof(T), NULL, &clStatus); //frame buf
-  cl_fs = clCreateBuffer(context, CL_MEM_READ_ONLY, fsize * sizeof(T), NULL, &clStatus);
-  cl_hdif = clCreateBuffer(context, CL_MEM_READ_WRITE, fsize * sizeof(int), NULL, &clStatus); //difference buf
-  cl_prof = clCreateBuffer(context, CL_MEM_READ_WRITE, cols * sizeof(float), NULL, &clStatus); //
-  cl_shblc = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float), NULL, &clStatus); //Sh on edges
-  cl_shnblc = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float), NULL, &clStatus); //Sh
+  clm_pic = clCreateBuffer(context, CL_MEM_READ_ONLY, cls*rws*sizeof(cl_uchar), NULL, &status);
+  clm_res = clCreateBuffer(context, CL_MEM_READ_WRITE, 2*sizeof(cl_float), NULL, &status);
+  status = clFinish(queue);
   // Create programs from the kernel source
-  p_frame2dif = clCreateProgramWithSource(context, 1, (const char **)&frame2dif, NULL, &clStatus);
-  // p_dif2prof = clCreateProgramWithSource(context, 1, (const char **)&dif2prof, NULL, &clStatus);
-  //p_sum2sh = clCreateProgramWithSource(context, 1, (const char **)&sum2sh, NULL, &clStatus);
-  // Build the program
-  clStatus = clBuildProgram(p_dif2prof, 1, device_list, NULL, NULL, NULL);
-  //clStatus = clBuildProgram(p_frame2dif, 1, device_list, NULL, NULL, NULL);
-  //clStatus = clBuildProgram(p_sum2sh, 1, device_list, NULL, NULL, NULL);
+  prog = clCreateProgramWithSource(context, 1, (const char**)&s_pic2bs, NULL, &status);
+  status = clBuildProgram(prog, 1, device_list, NULL, NULL, NULL);
   // Create the OpenCL kernels
-  k_dif2prof = clCreateKernel(p_dif2prof, "dif2prof_kernel", &clStatus);
-  //k_frame2dif = clCreateKernel(p_frame2dif, "frame2dif_kernel", &clStatus);
-  //k_sum2sh = clCreateKernel(p_sum2sh, "sum2sh_kernel", &clStatus);
+  kern = clCreateKernel(prog, "pic2hprof", &status);
+  status = clSetKernelArg(kern, 1, sizeof(cl_mem), (void*)&clm_res);
+  status = clSetKernelArg(kern, 2, sizeof(cl_int), (void*)&cols);
+  status = clSetKernelArg(kern, 3, sizeof(cl_int), (void*)&rows);
 }
 
-template<typename T>
-Optzd<T>::~Optzd(){
+Optzd::~Optzd(){
   /*
   clStatus = clReleaseKernel(kernel);
 clStatus = clReleaseProgram(program);
@@ -66,65 +83,37 @@ free(platforms);
 free(device_list);*/
 }
 
-template<typename T>
 void*
-Optzd<T>::eval(std::vector<T>* t){
-  fs = (int*)t + 1;
+Optzd::eval(uint8_t* t){
   // Copy frame to the device
-  clStatus = clEnqueueWriteBuffer(command_queue, cl_frame, CL_TRUE, 0, fsize * sizeof(int), (T*)t, 0, NULL, NULL);
-  clStatus = clEnqueueWriteBuffer(command_queue, cl_fs, CL_TRUE, 0, fsize * sizeof(int), fs, 0, NULL, NULL);
+  status = clEnqueueWriteBuffer(queue, clm_pic, CL_TRUE, 0, cols * rows * sizeof(cl_uchar), t, 0, NULL, NULL);
   //setting kernels args
-  clStatus = clSetKernelArg(k_frame2dif, 0, sizeof(cl_mem), (void *)&cl_frame);
-    clStatus = clSetKernelArg(k_frame2dif, 1, sizeof(cl_mem), (void *)&cl_fs);
-  clStatus = clSetKernelArg(k_frame2dif, 2, sizeof(cl_mem),  (void *)&cl_hdif);
-  clStatus = clSetKernelArg(k_frame2dif, 2, sizeof(cl_int),  (void *)&fsize);
-//clStatus = clSetKernelArg(k_frame2dif, 2, sizeof(int),   (void *)&fsize);
-  //dif2prof
-  /*clStatus = clSetKernelArg(k_dif2prof, 0, sizeof(cl_mem),   (void *)&cl_hdif);
-  clStatus = clSetKernelArg(k_dif2prof, 1, sizeof(cl_mem), (void *)&cl_prof);
-  clStatus = clSetKernelArg(k_dif2prof, 2, sizeof(int),  (void *)&cols);  
-  clStatus = clSetKernelArg(k_dif2prof, 3, sizeof(int),  (void *)&fsize);*/
-  //sum2sh
-  /* clStatus = clSetKernelArg(k_sum2sh, 0, sizeof(cl_mem),
-			    (void *)&cl_prof);
-  clStatus = clSetKernelArg(k_sum2sh, 1, sizeof(cl_mem),
-			    (void *)&cl_shnblc);
-  clStatus = clSetKernelArg(k_sum2sh, 2, sizeof(cl_mem),
-			    (void *)&cl_shblc);  
-  clStatus = clSetKernelArg(k_sum2sh, 3, sizeof(int),
-  (void *)&fsize);*/
+  status = clSetKernelArg(kern, 0, sizeof(cl_mem), (void*)&clm_pic);
   // Execute the OpenCL kernel on the list
-  size_t global_size = fsize; // Process the entire lists
-  size_t local_size = lmem;
-  // Process one item at a time
-  clStatus = clEnqueueNDRangeKernel(command_queue, k_dif2prof, 1, NULL, &global_size, &local_size, 0, NULL, NULL);
-  //clStatus = clEnqueueNDRangeKernel(command_queue, k_frame2dif, 1, NULL, &global_size, &local_size, 0, NULL, NULL);
-  //clStatus = clEnqueueNDRangeKernel(command_queue, k_sum2sh, 1, NULL, &global_size, &local_size, 0, NULL, NULL);
-// Read the cl memory C_clmem on device to the host variable C
-  //clStatus = clEnqueueReadBuffer(command_queue, cl_shnblc, CL_TRUE, 0, sizeof(float), &Shnblc, 0, NULL, NULL);
-  //clStatus = clEnqueueReadBuffer(command_queue, cl_shblc, CL_TRUE, 0, sizeof(float), &Shblc, 0, NULL, NULL);
-  clStatus = clEnqueueReadBuffer(command_queue, cl_shblc, CL_TRUE, 0, fsize*sizeof(int), &ddiff, 0, NULL, NULL);
+  status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &global_threads, NULL, 0, NULL, NULL);
+  status = clEnqueueReadBuffer(queue, clm_res, CL_TRUE, 0, 2*sizeof(float), sh, 0, NULL, NULL);
   // Clean up and wait for all the comands to complete.
-  clStatus = clFlush(command_queue);
-  clStatus = clFinish(command_queue);
+  status = clFlush(queue);
+  status = clFinish(queue);
   //eval-ing BS
-  for (int i = 0; i < fsize; i++) {
-    std::cout << ddiff[i] << " ";
-  }
-
-  std::cout << Shblc << " " << Shnblc << "\n";
-  *BS = (Shblc/cnt_blc)/(Shnblc/cnt_nblc);
+  *BS = (sh[1])/(sh[0]);
   return BS;
 }
 
-/*
-template class Naive<uint8_t>;
-template class Naive<uint16_t>;
-template class Naive<uint32_t>;
-template class Naive<uint64_t>;
-template class Naive<int8_t>;
-template class Naive<int16_t>;
-template class Naive<int32_t>;
-template class Naive<int64_t>;
-*/
-template class Optzd<int>;
+void*
+Optzd::eval(std::vector<uint8_t>* t){
+  uint8_t* pic = reinterpret_cast<uint8_t*>(t->data());
+  // Copy frame to the device
+  status = clEnqueueWriteBuffer(queue, clm_pic, CL_TRUE, 0, cols * rows * sizeof(cl_uchar), pic, 0, NULL, NULL);
+  // setting kernels args
+  status = clSetKernelArg(kern, 0, sizeof(cl_mem), (void*)&clm_pic);
+  // Execute the OpenCL kernel on the list
+  status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &global_threads, NULL, 0, NULL, NULL);
+  status = clEnqueueReadBuffer(queue, clm_res, CL_TRUE, 0, 2*sizeof(float), sh, 0, NULL, NULL);
+  // Clean up and wait for all the comands to complete.
+  status = clFlush(queue);
+  status = clFinish(queue);
+  //eval-ing BS
+  *BS = (sh[1])/(sh[0]);
+  return BS;
+}

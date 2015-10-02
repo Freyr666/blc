@@ -1,5 +1,7 @@
 #include "Naive.hpp"
 
+#include <iostream>
+
 template<typename T>
 Naive<T>::Naive(int cls, int rws){
   cols = cls;
@@ -55,7 +57,7 @@ Naive<T>::eval(std::vector<T>* t){
   return (void*)BS;
 }
 
-/*
+
 template class Naive<uint8_t>;
 template class Naive<uint16_t>;
 template class Naive<uint32_t>;
@@ -64,5 +66,4 @@ template class Naive<int8_t>;
 template class Naive<int16_t>;
 template class Naive<int32_t>;
 template class Naive<int64_t>;
-*/
-template class Naive<int>;
+

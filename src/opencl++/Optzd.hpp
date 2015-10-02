@@ -7,31 +7,34 @@
 
 #include "kernels.h"
 
-template<typename T>
 class Optzd{
 private:
-  int cols, rows, fsize, lmem;
-  int cnt_blc, cnt_nblc;
-  float Shblc, Shnblc;
+  int cols, rows, threads;
+  float* sh;
   double* BS;
-  int* ddiff, *fs;
-  cl_mem cl_frame, cl_hdif, cl_prof, cl_shblc, cl_shnblc, cl_fs;
-  //cl_spec
-  cl_int clStatus;
-  cl_platform_id * platforms;
-  cl_uint num_platforms;
-  cl_device_id* device_list;
-  cl_uint num_devices;
+
+  cl_mem clm_pic, clm_res;
+  cl_platform_id * platform = NULL;
+  cl_device_id * device_list = NULL;
   cl_context context;
-  cl_command_queue command_queue;
-  cl_program p_frame2dif, p_dif2prof, p_sum2sh;
-  cl_kernel k_frame2dif, k_dif2prof, k_sum2sh;
+  cl_command_queue queue;
+  cl_uint n_platforms, n_devices;
+  size_t global_threads;
+  cl_program prog;
+  cl_kernel kern;
+  cl_int status;
 public:
-  Optzd(int cls, int rws, int l_mem);
+  Optzd(int cls, int rws, int thrds, int pltfrm);
   virtual ~Optzd();
 
-  void* eval(std::vector<T>* t);
+  void* eval(uint8_t* t);
 
-  void* operator()(std::vector<T>* t) { return eval(t);}
+  void* eval(std::vector<uint8_t>* t);
+
+  void* operator()(std::vector<uint8_t>* t) { return eval(t);}
+
+  void* operator()(uint8_t* t) { return eval(t);}
+
+  char* compiler_log(void);
 };
 #endif /* OPTZD_H */

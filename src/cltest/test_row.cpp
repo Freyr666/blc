@@ -11,7 +11,7 @@
 
 #define DIV(X,Y)((X%Y)? X/Y+1 : X/Y)
 
-#define THREADS 64
+#define THREADS 16
 
 const char * s_pic2bs =
   //"#pragma OPENCL EXTENSION cl_khr_fp64 : enable  \n"
@@ -29,15 +29,16 @@ const char * s_pic2bs =
   "  size_t binSize = globalSize/localSize;\n"
   "  float sum, sub, subNext, subPrev; \n"
   "  float hacc = 0;\n"
-  "  for (int i = 0; i < vsize; i++){ \n"
-  "         sub = (float)abs(pic[globalId + i*hsize - 1] - pic[globalId + i*hsize]);\n"
-  "         subNext = (float)abs(pic[globalId + i*hsize] - pic[globalId + i*hsize + 1]);\n" 
-  "         subPrev = (float)abs(pic[globalId + i*hsize - 2] - pic[globalId + i*hsize - 1]);\n"
+  // "  if ((globalId < 2) || (globalId > hsize - 1) || (globalId > globalSize - 1)) return; \n"
+  "  for (int i = 0; i < vsize; ++i){ \n"
+  "         sub = (float)abs(pic[globalId*4 + i*hsize - 1] - pic[globalId*4 + i*hsize]);\n"
+  "         subNext = (float)abs(pic[globalId*4 + i*hsize] - pic[globalId*4 + i*hsize + 1]);\n" 
+  "         subPrev = (float)abs(pic[globalId*4 + i*hsize - 2] - pic[globalId*4 + i*hsize - 1]);\n"
   "         sum = (float)(subNext + subPrev);\n"
   "         if (sum == 0) sum = 1; \n"
   "         else sum = 0.5*sum; \n"
   "         hacc += sub / sum;} \n"
-  "  if (globalId % 8) result[0] += hacc;\n"
+  "  if (globalId % 2) result[0] += hacc;\n"
   "  else result[1] += hacc;\n"
   "}\n";
 
@@ -96,10 +97,10 @@ pic2bs(int h, int v, int* pic, float* res){
   status = clSetKernelArg(kern, 2, sizeof(cl_int), (void*)&h);
   status = clSetKernelArg(kern, 3, sizeof(cl_int), (void*)&v);
   //
-  size_t globalThreads = h;
+  size_t globalThreads = h/4;
   size_t localThreads = THREADS;
   //
-  status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &globalThreads, &localThreads, 0, NULL, NULL);
+  status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &globalThreads, NULL, 0, NULL, NULL);
   // result
   status = clEnqueueReadBuffer(queue, clm_res, CL_TRUE, 0, 2*sizeof(float), res, 0, NULL, NULL);
   // flush
@@ -129,24 +130,18 @@ main(int argc, char *argv[]){
   float Shnonblock = 0;
   long block_cnt = 0;
   long nonblock_cnt = 0;
-  float* BS = new float;
+  float BS;
   int v = blc->get_rows_num();
   int h = blc->get_cols_num();
-  int *pic = new int[h*v];
-  for (int i = 0; i < v; i++) {
-    for (int j = 0; j < h; j++) {
-      pic[i*v + j] = blc->get_el(j, i);
-    }
-  }
   float* sh = new float[2];
   sh[0] = 0;
   sh[1] = 0;
-  //int *pic = reinterpret_cast<int*>(blc->val());
+  int *pic = reinterpret_cast<int*>(blc->val()->data());
   pic2bs(h, v, pic, sh);
   block_cnt = h/8;
   nonblock_cnt = h - block_cnt;
   if (!sh[0]) sh[0] = 4;
-  *BS = (sh[1]/block_cnt)/(sh[0]/nonblock_cnt);
-  std::cout << *BS/7 << " -- result\n";
+  BS = (sh[1])/(sh[0]);
+  std::cout << BS << " -- result\n";
   return 0;
 }
