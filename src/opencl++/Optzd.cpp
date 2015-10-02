@@ -68,19 +68,14 @@ Optzd::Optzd(int cls, int rws, int thrds, int pltfrm){
 }
 
 Optzd::~Optzd(){
-  /*
-  clStatus = clReleaseKernel(kernel);
-clStatus = clReleaseProgram(program);
-clStatus = clReleaseMemObject(A_clmem);
-clStatus = clReleaseMemObject(B_clmem);
-clStatus = clReleaseMemObject(C_clmem);
-clStatus = clReleaseCommandQueue(command_queue);
-clStatus = clReleaseContext(context);
-free(A);
-free(B);
-free(C);
-free(platforms);
-free(device_list);*/
+status = clReleaseKernel(kern);
+status = clReleaseProgram(prog);
+status = clReleaseMemObject(clm_pic);
+status = clReleaseMemObject(clm_res);
+status = clReleaseCommandQueue(queue);
+status = clReleaseContext(context);
+free(platform);
+free(device_list);
 }
 
 void*
