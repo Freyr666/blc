@@ -8,7 +8,7 @@
 class Optzd{
 private:
   int cols, rows;
-  float* sh, *shb;
+  float* sh;
   double* BS;
 
   cl_mem clm_pic, clm_sh, clm_shb;

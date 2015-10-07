@@ -10,8 +10,7 @@ private:
   int cols;
   int rows;
   double* BS;
-  std::vector<long>* hDifference;
-  std::vector<long>* hProfile;  
+  std::vector<float>* hProfile;  
 public:
   Naive(int cls, int rws);
   Naive(Naive &n);
