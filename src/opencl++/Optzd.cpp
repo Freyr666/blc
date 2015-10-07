@@ -94,9 +94,13 @@ Optzd::eval(uint8_t* t){
   status = clFlush(queue);
   status = clFinish(queue);
   //eval-ing BS
+  float shb = 0, shnb = 0;
   for (int i = 0; i < (global_threads / 2); i++) {
-    *BS += sh[i*2]/sh[(i*2)+1];
+    shb += sh[i*2];
+    shnb += sh[(i*2)+1];
   }
+  if (shnb == 0) shnb = 4;
+  *BS = shb/(shnb);
   return BS;
 }
 
@@ -112,16 +116,19 @@ Optzd::eval(std::vector<uint8_t>* t){
   // setting kernels args
   status = clSetKernelArg(kern, 0, sizeof(cl_mem), (void*)&clm_pic);
   // Execute the OpenCL kernel on the list
-  status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &global_threads, NULL, 0, NULL, NULL);
+  status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &global_threads, &threads, 0, NULL, NULL);
   status = clEnqueueReadBuffer(queue, clm_sh, CL_TRUE, 0, global_threads*sizeof(float), sh, 0, NULL, NULL);
   // Clean up and wait for all the comands to complete.
   status = clFlush(queue);
   status = clFinish(queue);
   //eval-ing BS
+  float shb = 0, shnb = 0;
   for (int i = 0; i < (global_threads / 2); i++) {
-    *BS += sh[i*2]/sh[(i*2)+1];
+    shb += sh[i*2];
+    shnb += sh[(i*2)+1];
   }
-  *BS /= 100;
+  if (shnb == 0) shnb = 4;
+  *BS = shb/(shnb);
   return BS;
 }
 
