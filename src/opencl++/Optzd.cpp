@@ -88,7 +88,7 @@ Optzd::eval(uint8_t* t){
   //setting kernels args
   status = clSetKernelArg(kern, 0, sizeof(cl_mem), (void*)&clm_pic);
   // Execute the OpenCL kernel on the list
-  status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &global_threads, &threads, 0, NULL, NULL);
+  status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &global_threads, NULL, 0, NULL, NULL);
   status = clEnqueueReadBuffer(queue, clm_sh, CL_TRUE, 0, global_threads*sizeof(float), sh, 0, NULL, NULL);
   // Clean up and wait for all the comands to complete.
   status = clFlush(queue);
@@ -116,7 +116,7 @@ Optzd::eval(std::vector<uint8_t>* t){
   // setting kernels args
   status = clSetKernelArg(kern, 0, sizeof(cl_mem), (void*)&clm_pic);
   // Execute the OpenCL kernel on the list
-  status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &global_threads, &threads, 0, NULL, NULL);
+  status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &global_threads, NULL, 0, NULL, NULL);
   status = clEnqueueReadBuffer(queue, clm_sh, CL_TRUE, 0, global_threads*sizeof(float), sh, 0, NULL, NULL);
   // Clean up and wait for all the comands to complete.
   status = clFlush(queue);
