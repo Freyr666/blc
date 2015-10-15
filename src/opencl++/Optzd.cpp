@@ -45,40 +45,40 @@ Optzd::Optzd(int cls, int rws, int thrds, int pltfrm){
   device_list = NULL;
   //Set up the Platform
   status = clGetPlatformIDs(0, NULL, &n_platforms);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   platform = new cl_platform_id[n_platforms];
   status = clGetPlatformIDs(n_platforms, platform, NULL);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   //Get the devices list and choose the device you want to run on
   status = clGetDeviceIDs(platform[pltfrm], CL_DEVICE_TYPE_GPU, 0, NULL, &n_devices);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   device_list = new cl_device_id [n_devices];
   status = clGetDeviceIDs(platform[pltfrm], CL_DEVICE_TYPE_GPU, n_devices, device_list, NULL);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   // Create one OpenCL context for each device in the platform
   context = clCreateContext(NULL, n_devices, device_list, NULL, NULL, &status);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   queue = clCreateCommandQueue(context, *device_list, 0, &status);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   // Create memory buffers on the device for each vector
   clm_pic = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, cls*rws*sizeof(cl_uchar), NULL, &status);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   clm_sh = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, global_threads*sizeof(cl_float), NULL, &status);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   status = clFinish(queue);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   // Create programs from the kernel source
   prog = clCreateProgramWithSource(context, 1, (const char**)&s_pic2bs, NULL, &status);
   status = clBuildProgram(prog, 1, device_list, NULL, NULL, NULL);
   // Create the OpenCL kernels
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   kern = clCreateKernel(prog, "pic2hprof", &status);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   status = clSetKernelArg(kern, 0, sizeof(cl_mem), (void*)&clm_pic);
   status |= clSetKernelArg(kern, 1, sizeof(cl_mem), (void*)&clm_sh);
   status |= clSetKernelArg(kern, 2, sizeof(cl_int), (void*)&cols);
   status |= clSetKernelArg(kern, 3, sizeof(cl_int), (void*)&rows);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
 }
 
 Optzd::~Optzd(){
@@ -95,26 +95,26 @@ free(device_list);
 void*
 Optzd::eval(uint8_t* t){
   cl_float* sh = (cl_float*)clEnqueueMapBuffer(queue, clm_sh, CL_FALSE, CL_MAP_READ, 0, global_threads*sizeof(cl_float), 0, NULL, NULL, &status);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   for (int i = 0; i < global_threads; i++) {
     sh[i] = 0;
   }
   // Copy frame to the device
   status = clEnqueueWriteBuffer(queue, clm_pic, CL_FALSE, 0, cols * rows * sizeof(cl_uchar), t, 0, NULL, NULL);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   status = clEnqueueWriteBuffer(queue, clm_sh, CL_FALSE, 0, global_threads * sizeof(float), sh, 0, NULL, NULL);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   // Execute the OpenCL kernel on the list
   status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &global_threads, NULL, 0, NULL, NULL);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   // Clean up and wait for all the comands to complete.
   status = clFlush(queue);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   status = clFinish(queue);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   //eval-ing BS
   status = clEnqueueReadBuffer(queue, clm_sh, CL_TRUE, 0, global_threads*sizeof(float), sh, 0, NULL, NULL);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   float shb = 0, shnb = 0;
   for (int i = 0; i < (global_threads / 2); i++) {
     shb += sh[i*2];
@@ -129,27 +129,27 @@ Optzd::eval(uint8_t* t){
 void*
 Optzd::eval(std::vector<uint8_t>* t){
   cl_float* sh = (cl_float*)clEnqueueMapBuffer(queue, clm_sh, CL_FALSE, CL_MAP_READ, 0, global_threads*sizeof(cl_float), 0, NULL, NULL, &status);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   uint8_t* pic = reinterpret_cast<uint8_t*>(t->data());
   for (int i = 0; i < global_threads; i++) {
     sh[i] = 0;
   }
   // Copy frame to the device
   status = clEnqueueWriteBuffer(queue, clm_pic, CL_FALSE, 0, cols * rows * sizeof(cl_uchar), pic, 0, NULL, NULL);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   status = clEnqueueWriteBuffer(queue, clm_sh, CL_FALSE, 0, global_threads * sizeof(float), sh, 0, NULL, NULL);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   // Execute the OpenCL kernel on the list
   status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &global_threads, NULL, 0, NULL, NULL);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   // Clean up and wait for all the comands to complete.
   status = clFlush(queue);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   status = clFinish(queue);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   //eval-ing BS
   status = clEnqueueReadBuffer(queue, clm_sh, CL_TRUE, 0, global_threads*sizeof(float), sh, 0, NULL, NULL);
-  RET_STATUS(status, exit_status);
+  //RET_STATUS(status, exit_status);
   float shb = 0, shnb = 0;
   for (int i = 0; i < (global_threads / 2); i++) {
     shb += sh[i*2];
