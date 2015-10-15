@@ -18,6 +18,10 @@ public:
 
   void* eval(std::vector<T>* t);
 
+  void* eval(T* t);
+
   void* operator()(std::vector<T>* t) { return eval(t);}
+
+  void* operator()(T* t) { return eval(t);}
 };
 #endif /* NAIVE_H */

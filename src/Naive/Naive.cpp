@@ -49,6 +49,30 @@ Naive<T>::eval(std::vector<T>* t){
   return (void*)BS;
 }
 
+template<typename T>
+void*
+Naive<T>::eval(T* t){
+  double Shblock = 0;
+  double Shnonblock = 0;
+  for (int j = 0; j < cols/4; j++) {
+    float sum, sub, subNext, subPrev, hacc = 0;
+    for (int i = 0; i < rows; i++) {
+      sub = (float)abs(t[j*4 + i*cols - 1] - t[j*4 + i*cols]);
+      subNext = (float)abs(t[j*4 + i*cols] - t[j*4 + i*cols + 1]); 
+      subPrev = (float)abs(t[j*4 + i*cols - 2] - t[j*4 + i*cols - 1]);
+      sum = (subNext + subPrev);
+      if (sum == 0) sum = 1; 
+      else sum = sum / 2; 
+      hacc += sub / sum;}
+    (*hProfile)[j] = hacc;}
+  for (int i = 0; i < cols/4; i++) {
+    if (i%2) Shnonblock += (*hProfile)[i];
+    else Shblock += (*hProfile)[i];
+  }
+  if (!Shnonblock) Shnonblock = 4;
+  *BS = (Shblock)/(Shnonblock);
+  return (void*)BS;
+}
 
 template class Naive<uint8_t>;
 template class Naive<uint16_t>;

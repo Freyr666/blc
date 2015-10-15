@@ -20,7 +20,7 @@ private:
   size_t global_threads, threads;
   cl_program prog;
   cl_kernel kern;
-  cl_int status;
+  cl_int status, exit_status;
 public:
   Optzd(int cls, int rws, int thrds, int pltfrm);
   virtual ~Optzd();
@@ -34,5 +34,7 @@ public:
   void* operator()(uint8_t* t) { return eval(t);}
 
   char* compilerlog(void);
+
+  int getstatus(void) const {return status;}
 };
 #endif /* OPTZD_H */

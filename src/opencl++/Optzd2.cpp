@@ -93,6 +93,7 @@ const char * s_pic2bs =
   "         if (sum == 0) sum = 1; \n"
   "         else sum = sum / 2; \n"
   "         hacc += sub / sum;} \n"
+  "  barrier(CLK_LOCAL_MEM_FENCE);\n"
   "  if (globalId % 2)\n"
   "     atomic_add_float(&sh[0], hacc);\n"
   "  else \n"
@@ -131,6 +132,8 @@ Optzd::Optzd(int cls, int rws, int thrds, int pltfrm){
   // Create the OpenCL kernels
   kern = clCreateKernel(prog, "pic2hprof", &status);
   //status = clSetKernelArg(kern, 1, sizeof(cl_mem), (void*)&clm_sh);
+  status = clSetKernelArg(kern, 0, sizeof(cl_mem), (void*)&clm_pic);
+  status = clSetKernelArg(kern, 1, sizeof(cl_mem), (void*)&clm_sh);
   status = clSetKernelArg(kern, 2, sizeof(cl_int), (void*)&cols);
   status = clSetKernelArg(kern, 3, sizeof(cl_int), (void*)&rows);
 }
@@ -155,13 +158,11 @@ Optzd::eval(uint8_t* t){
   //}
   // Copy frame to the device
   status = clEnqueueWriteBuffer(queue, clm_pic, CL_FALSE, 0, cols * rows * sizeof(cl_uchar), t, 0, NULL, NULL);
-  //status = clEnqueueWriteBuffer(queue, clm_sh, CL_TRUE, 0, global_threads * sizeof(cl_float), sh, 0, NULL, NULL);
+  status = clEnqueueWriteBuffer(queue, clm_sh, CL_TRUE, 0, 2 * sizeof(cl_float), sh, 0, NULL, NULL);
   //setting kernels args
-  status = clSetKernelArg(kern, 0, sizeof(cl_mem), (void*)&clm_pic);
-  status = clSetKernelArg(kern, 1, sizeof(cl_mem), (void*)&clm_sh);
   // Execute the OpenCL kernel on the list
   status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &global_threads, NULL, 0, NULL, NULL);
-  //status = clEnqueueReadBuffer(queue, clm_sh, CL_TRUE, 0, global_threads*sizeof(float), sh, 0, NULL, NULL);
+  status = clEnqueueReadBuffer(queue, clm_sh, CL_TRUE, 0, 2*sizeof(float), sh, 0, NULL, NULL);
   // Clean up and wait for all the comands to complete.
   status = clFlush(queue);
   status = clFinish(queue);
@@ -185,13 +186,10 @@ Optzd::eval(std::vector<uint8_t>* t){
   sh[1] = 0;
   // Copy frame to the device
   status = clEnqueueWriteBuffer(queue, clm_pic, CL_TRUE, 0, cols * rows * sizeof(cl_uchar), pic, 0, NULL, NULL);
-  //status = clEnqueueWriteBuffer(queue, clm_sh, CL_TRUE, 0, global_threads * sizeof(cl_float), sh, 0, NULL, NULL);
-  // setting kernels args
-  status = clSetKernelArg(kern, 0, sizeof(cl_mem), (void*)&clm_pic);
-  status = clSetKernelArg(kern, 1, sizeof(cl_mem), (void*)&clm_sh);
+  status = clEnqueueWriteBuffer(queue, clm_sh, CL_TRUE, 0, 2 * sizeof(cl_float), sh, 0, NULL, NULL);
   // Execute the OpenCL kernel on the list
   status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &global_threads, NULL, 0, NULL, NULL);
-  //status = clEnqueueReadBuffer(queue, clm_sh, CL_TRUE, 0, 2*sizeof(float), sh, 0, NULL, NULL);
+  status = clEnqueueReadBuffer(queue, clm_sh, CL_TRUE, 0, 2*sizeof(float), sh, 0, NULL, NULL);
   // Clean up and wait for all the comands to complete.
   status = clFlush(queue);
   status = clFinish(queue);

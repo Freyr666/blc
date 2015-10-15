@@ -20,7 +20,7 @@ in_thread_opt(std::vector<uint8_t>* pic, int n, Optzd* fun){
 void
 in_thread(std::vector<uint8_t>* pic, int n, Naive<uint8_t>* fun){
   double rv = *(double*)(*fun)(pic);
-  std::cout << "Thread " << n << " " << rv << "\n";
+  // std::cout << "Thread " << n << " " << rv << "\n";
 }
 
 int
