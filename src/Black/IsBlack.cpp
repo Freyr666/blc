@@ -15,7 +15,7 @@ const char * s_isblck =
   "         __global const uchar* pic,\n"
   "         __global const uchar* picprev,\n"
   "         __global int* result,\n"
-  "         int hsize, int vsize, uchar val)\n"
+  "         int hsize, int vsize, uchar valbk, uchar valsm)\n"
   "{    \n"
   "  size_t globalId = get_global_id(0); \n"
   "  size_t groupSize = get_num_groups(0); \n"
@@ -25,26 +25,34 @@ const char * s_isblck =
   "  size_t globalSize = get_global_size(0); \n"
   "  int black = 0;\n"
   "  int same = 0; \n"
+  "  int dif = 0; \n"
+  "  int col = 0; \n"
   "  if (globalId >= hsize) return; \n"
   "  for (uint i = 0; i < vsize; i++){ \n"
-  "      if (pic[globalId + i*hsize] < val) black++; \n"
-  "      if (pic[globalId + i*hsize] == picprev[globalId + i*hsize]) same++; \n"
+  "      if (pic[globalId + i*hsize] < valbk) black++; \n"
+  "      int diftmp = abs(pic[globalId + i*hsize] - picprev[globalId + i*hsize]); \n"
+  "      if (diftmp < valsm) same++; \n"
+  "      dif += diftmp; \n"
+  "      col += pic[globalId + i*hsize]; \n"
   "  }\n"
   "  barrier(CLK_LOCAL_MEM_FENCE); \n"
   "  atomic_add(&result[0], black); \n"
   "  atomic_add(&result[1], same); \n"
+  "  atomic_add(&result[2], dif); \n"
+  "  atomic_add(&result[3], col); \n"
   // "  result[0] = 1000000; \n"
   // "  result[1] = 1000000; \n"
   "}\n";
 
-IsBlack::IsBlack(int cls, int rws, int thrds, int pltfrm, uint8_t v){
+IsBlack::IsBlack(int cls, int rws, int thrds, int pltfrm, uint8_t vbk, uint8_t vsm){
   cols = cls;
   rows = rws;
   threads = thrds;
   platform_n = pltfrm;
-  val = v;
+  valbk = vbk;
+  valsm = vsm;
   global_threads = cls;
-  percentage = new float[2];
+  percentage = new float[4];
   //opencl init
   platform = NULL;
   device_list = NULL;
@@ -66,7 +74,7 @@ IsBlack::IsBlack(int cls, int rws, int thrds, int pltfrm, uint8_t v){
   // Create memory buffers on the device for each vector
   clm_pic = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, cls*rws*sizeof(cl_uchar), NULL, &status);
   clm_picprev = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, cls*rws*sizeof(cl_uchar), NULL, &status);
-  clm_res = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, 2*sizeof(cl_int), NULL, &status);
+  clm_res = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, 4*sizeof(cl_int), NULL, &status);
   status = clFinish(queue);
   // Create programs from the kernel source
   prog = clCreateProgramWithSource(context, 1, (const char**)&s_isblck, NULL, &status);
@@ -78,7 +86,8 @@ IsBlack::IsBlack(int cls, int rws, int thrds, int pltfrm, uint8_t v){
   status = clSetKernelArg(kern, 2, sizeof(cl_mem), (void*)&clm_res);
   status = clSetKernelArg(kern, 3, sizeof(cl_int), (void*)&cols);
   status = clSetKernelArg(kern, 4, sizeof(cl_int), (void*)&rows);
-  status = clSetKernelArg(kern, 5, sizeof(cl_uchar), (void*)&val);
+  status = clSetKernelArg(kern, 5, sizeof(cl_uchar), (void*)&valbk);
+  status = clSetKernelArg(kern, 6, sizeof(cl_uchar), (void*)&valsm);
 }
 
 IsBlack::~IsBlack(){
@@ -96,22 +105,25 @@ IsBlack::~IsBlack(){
 
 void*
 IsBlack::eval(uint8_t *t, uint8_t *tp){
-  int* result = (int*)clEnqueueMapBuffer(queue, clm_res, CL_FALSE, CL_MAP_READ, 0, 2*sizeof(cl_int), 0, NULL, NULL, &status);
-  for (int i = 0; i < 2; i++) {
+  int* result = (int*)clEnqueueMapBuffer(queue, clm_res, CL_FALSE, CL_MAP_READ, 0, 4*sizeof(cl_int), 0, NULL, NULL, &status);
+  for (int i = 0; i < 4; i++) {
     result[i] = 0;
   }
   // Copy frame to the device
   status = clEnqueueWriteBuffer(queue, clm_pic, CL_FALSE, 0, cols * rows * sizeof(cl_uchar), t, 0, NULL, NULL);
   status = clEnqueueWriteBuffer(queue, clm_picprev, CL_FALSE, 0, cols * rows * sizeof(cl_uchar), tp, 0, NULL, NULL);
-  status = clEnqueueWriteBuffer(queue, clm_res, CL_FALSE, 0, 2 * sizeof(int), result, 0, NULL, NULL);
+  status = clEnqueueWriteBuffer(queue, clm_res, CL_FALSE, 0, 4 * sizeof(int), result, 0, NULL, NULL);
   // Execute the OpenCL kernel on the list
   status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &global_threads, NULL, 0, NULL, NULL);
-  status = clEnqueueReadBuffer(queue, clm_res, CL_FALSE, 0, 2*sizeof(int), result, 0, NULL, NULL);
+  status = clEnqueueReadBuffer(queue, clm_res, CL_FALSE, 0, 4*sizeof(int), result, 0, NULL, NULL);
   // Clean up and wait for all the comands to complete.
   status = clFlush(queue);
   status = clFinish(queue);
   for (int i = 0; i < 2; i++) {
     percentage[i] = result[i]*100.0 / (cols*rows);
+  }
+  for (int i = 0; i < 2; i++) {
+    percentage[i + 2] = result[i + 2] / (cols*rows);
   }
   clEnqueueUnmapMemObject(queue, clm_res, result, 0, NULL, NULL);
   return percentage;
@@ -122,22 +134,25 @@ IsBlack::eval(std::vector<uint8_t>* pic, std::vector<uint8_t>* picprev){
   uint8_t* t = reinterpret_cast<uint8_t*>(pic->data());
   uint8_t* tp = reinterpret_cast<uint8_t*>(picprev->data());
   // Copy frame to the device
-  int* result = (int*)clEnqueueMapBuffer(queue, clm_res, CL_FALSE, CL_MAP_READ, 0, 2*sizeof(cl_int), 0, NULL, NULL, &status);
-  for (int i = 0; i < 2; i++) {
+  int* result = (int*)clEnqueueMapBuffer(queue, clm_res, CL_FALSE, CL_MAP_READ, 0, 4*sizeof(cl_int), 0, NULL, NULL, &status);
+  for (int i = 0; i < 4; i++) {
     result[i] = 0;
   }
   // Copy frame to the device
   status = clEnqueueWriteBuffer(queue, clm_pic, CL_FALSE, 0, cols * rows * sizeof(cl_uchar), t, 0, NULL, NULL);
   status = clEnqueueWriteBuffer(queue, clm_picprev, CL_FALSE, 0, cols * rows * sizeof(cl_uchar), tp, 0, NULL, NULL);
-  status = clEnqueueWriteBuffer(queue, clm_res, CL_FALSE, 0, 2 * sizeof(int), result, 0, NULL, NULL);
+  status = clEnqueueWriteBuffer(queue, clm_res, CL_FALSE, 0, 4 * sizeof(int), result, 0, NULL, NULL);
   // Execute the OpenCL kernel on the list
   status = clEnqueueNDRangeKernel(queue, kern, 1, NULL, &global_threads, NULL, 0, NULL, NULL);
-  status = clEnqueueReadBuffer(queue, clm_res, CL_FALSE, 0, 2*sizeof(int), result, 0, NULL, NULL);
+  status = clEnqueueReadBuffer(queue, clm_res, CL_FALSE, 0, 4*sizeof(int), result, 0, NULL, NULL);
   // Clean up and wait for all the comands to complete.
   status = clFlush(queue);
   status = clFinish(queue);
   for (int i = 0; i < 2; i++) {
     percentage[i] = result[i]*100.0 / (cols*rows);
+  }
+  for (int i = 0; i < 2; i++) {
+    percentage[i + 2] = result[i + 2] / (cols*rows);
   }
   clEnqueueUnmapMemObject(queue, clm_res, result, 0, NULL, NULL);
   return percentage;

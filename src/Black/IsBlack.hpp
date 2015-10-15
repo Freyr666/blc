@@ -8,7 +8,7 @@
 class IsBlack{
 private:
   int cols, rows, platform_n;
-  uint8_t val;
+  uint8_t valbk, valsm;
   float* percentage;
   
   cl_mem clm_pic, clm_picprev, clm_res;
@@ -22,7 +22,7 @@ private:
   cl_kernel kern;
   cl_int status, exit_status;
 public:
-  IsBlack(int cls, int rws, int thrds, int pltfrm, uint8_t v);
+  IsBlack(int cls, int rws, int thrds, int pltfrm, uint8_t vbk, uint8_t vsm);
   virtual ~IsBlack();
 
   void* eval(uint8_t* t, uint8_t* tp);
