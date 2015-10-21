@@ -5,7 +5,7 @@
 #include "Pic2Mat.hpp"
 //#include "./Naive/Naive.hpp"
 //#include "./opencl++/Optzd.hpp"
-#include "./Black/IsBlack.hpp"
+#include "./Alg/Alg.hpp"
 //timestamps for testing
 #include <sys/time.h>
 //multi threading test
@@ -41,7 +41,7 @@ main(int argc, char **argv){
     // f[i] = new Naive<uint8_t> (blc[i]->get_cols_num(), blc[i]->get_rows_num());
     // fopt[i] = new Optzd  (blc[i]->get_cols_num(), blc[i]->get_rows_num(), 16, 1);
   }
-  IsBlack alg (blc[0]->get_cols_num(), blc[0]->get_rows_num(), 16, 1, 16, 16);
+  Alg alg (blc[0]->get_cols_num(), blc[0]->get_rows_num(), 16, 1, 16, 16);
   gettimeofday(&tvb,NULL);
   // for (int i = 0; i < argc-1; i++) {
   //   thread_list[i] = std::thread(in_thread_opt, (blc[i]->val()), i, fopt[i]);
@@ -52,7 +52,7 @@ main(int argc, char **argv){
   perc = (float*)alg(blc[0]->val(), blc[1]->val());
   gettimeofday(&tva,NULL);
   
-  std::cout << perc[0] << "\t" << perc[1] << "\t" << perc[2] << "\t" << perc[3] << " Opt in " << " " << tva.tv_usec - tvb.tv_usec << " us\n" << alg.compilerlog();
+  std::cout << "black: " << perc[0] << "\tSame: " << perc[1] << "\tAvg diff: " << perc[2] << "\tAvg int: " << perc[3] << "\tBlcns: " << perc[4] << " Opt in " << " " << tva.tv_usec - tvb.tv_usec << " us\n" << alg.compilerlog();
 
   // gettimeofday(&tvb,NULL);
   // for (int i = 0; i < argc-1; i++) {
